@@ -10,7 +10,9 @@ const todos = [{
 	text: 'First test todo'
 }, {
 	_id: new ObjectID(),
-	text: 'Second test todo'
+	text: 'Second test todo',
+	completed: true,
+	completedAt: 333
 }];
 
 beforeEach((done) => {
@@ -98,6 +100,86 @@ describe('GET /todos/:id', () => {
 		request(app)
 			.get('/todos/123')
 			.expect(404)
+			.end(done);
+	});
+});
+
+
+describe('DELETE /todos/:id', () => {
+	it('should remove todo doc', (done) => {
+		var hexId = todos[1]._id.toHexString();
+
+		request(app)
+			.delete(`/todos/${hexId}`)
+			.expect(200)
+			.expect((res) => {
+				expect(res.body.todo._id).toBe(hexId);
+			})
+			.end((err, res) => {
+				if (err) {
+					return done(err);
+				}
+
+				Todo.findById(hexId).then((todo) => {
+					expect(todo).toNotExist();
+					done();
+				}).catch((e) => done(e));
+			});
+	});
+
+	it('should return 404 if todo not found', (done) => {
+		var id = new ObjectID();
+
+		request(app)
+			.delete(`/todos/${id.toHexString()}`)
+			.expect(404)
+			.end(done);
+	});
+
+	it('should return 404 for non-object ids', (done) => {
+		request(app)
+			.delete('/todos/123')
+			.expect(404)
+			.end(done);
+	});
+});
+
+describe('UPDATE /todos/:id', () => {
+	it('should update the todo', (done) => {
+		var hexId = todos[0]._id.toHexString();
+		var body = {
+			text: 'Updated text',
+			completed: true
+		};
+
+		request(app)
+			.patch(`/todos/${hexId}`)
+			.send(body)
+			.expect(200)
+			.expect((res) => {
+				expect(res.body.todo.text).toBe(body.text);
+				expect(res.body.todo.completed).toBe(true);
+				expect(res.body.todo.completedAt).toBeA('number');
+			})
+			.end(done);
+	});
+
+	it('should clear completedAt when todo is not completed', (done) => {
+		var hexId = todos[1]._id.toHexString();
+		var body = {
+			text: 'Updated text 2',
+			completed: false
+		};
+
+		request(app)
+			.patch(`/todos/${hexId}`)
+			.send(body)
+			.expect(200)
+			.expect((res) => {
+				expect(res.body.todo.text).toBe(body.text);
+				expect(res.body.todo.completed).toBe(false);
+				expect(res.body.todo.completedAt).toNotExist();
+			})
 			.end(done);
 	});
 });
